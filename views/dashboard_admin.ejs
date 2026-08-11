@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <title>Dashboard Super Admin - Sipeka</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-dark bg-dark px-4 mb-4">
+        <span class="navbar-brand">Panel Super Admin: <%= user.nama %></span>
+        <a href="/logout" class="btn btn-danger btn-sm">Logout</a>
+    </nav>
+
+    <div class="container px-4">
+        <div class="card shadow p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4>Daftar Guru Pembimbing Terdaftar</h4>
+                <a href="/admin/tambah-guru" class="btn btn-primary">+ Tambah Guru Baru</a>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>No</th>
+                            <th>Nama Guru</th>
+                            <th>Email</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% if (daftarGuru.length > 0) { %>
+                            <% daftarGuru.forEach((guru, index) => { %>
+                                <tr>
+                                    <td><%= index + 1 %></td>
+                                    <td><%= guru.nama %></td>
+                                    <td><%= guru.email %></td>
+                                </tr>
+                            <% }) %>
+                        <% } else { %>
+                            <tr>
+                                <td colspan="3" class="text-center text-muted">Belum ada guru terdaftar.</td>
+                            </tr>
+                        <% } %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

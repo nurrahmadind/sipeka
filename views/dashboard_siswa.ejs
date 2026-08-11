@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <title>Dashboard Siswa - Sipeka</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-dark bg-primary px-4">
+        <span class="navbar-brand">Halo, <%= user.nama %> (<%= user.kelas %>)</span>
+        <a href="/logout" class="btn btn-danger btn-sm">Logout</a>
+    </nav>
+    <div class="container mt-4">
+        <!-- Card Menu Absensi -->
+        <div class="card shadow p-4 mb-4">
+            <h4>Menu Absensi PKL</h4>
+            <p class="text-muted">Tempat PKL: <strong><%= user.tempat_pkl %></strong></p>
+            <hr>
+
+            <% if (!absensi || !absensi.jam_masuk) { %>
+                <!-- Form Absen Masuk -->
+                <form action="/absen/masuk" method="POST" enctype="multipart/form-data" onsubmit="getLocation(event, this)">
+                    <input type="hidden" name="lokasi" id="lokasiMasuk">
+                    <div class="mb-3">
+                        <label>Foto Selfie Kehadiran</label>
+                        <input type="file" name="foto" accept="image/*" capture="user" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-success">Kirim Absen Masuk</button>
+                </form>
+            <% } else if (!absensi.jam_pulang) { %>
+                <!-- Form Absen Pulang & Jurnal -->
+                <div class="alert alert-info">Kamu sudah absen masuk pukul: <%= absensi.jam_masuk %></div>
+                <form action="/absen/pulang" method="POST" enctype="multipart/form-data" onsubmit="getLocation(event, this)">
+                    <input type="hidden" name="lokasi" id="lokasiPulang">
+                    <div class="mb-3">
+                        <label>Foto Selfie Pulang</label>
+                        <input type="file" name="foto" accept="image/*" capture="user" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Jurnal Kegiatan Harian</label>
+                        <textarea name="jurnalHarian" class="form-control" rows="3" placeholder="Tuliskan kegiatan PKL hari ini..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-warning">Kirim Absen Pulang & Jurnal</button>
+                </form>
+            <% } else { %>
+                <div class="alert alert-success">Absensi hari ini sudah lengkap! Terimakasih.</div>
+            <% } %>
+        </div>
+
+        <!-- Card Rekap / Riwayat Absensi Siswa -->
+        <div class="card shadow p-4 mb-5">
+            <h4 class="mb-3">Riwayat & Rekap Absensi Saya</h4>
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Tanggal</th>
+                            <th>Jam Masuk</th>
+                            <th>Jam Pulang</th>
+                            <th>Jurnal Harian</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% if (riwayat.length > 0) { %>
+                            <% riwayat.forEach(item => { %>
+                                <tr>
+                                    <td><%= item.tanggal %></td>
+                                    <td><%= item.jam_masuk || '-' %></td>
+                                    <td><%= item.jam_pulang || '-' %></td>
+                                    <td><%= item.jurnal_harian || '-' %></td>
+                                    <td><span class="badge bg-success"><%= item.status || 'Hadir' %></span></td>
+                                </tr>
+                            <% }) %>
+                        <% } else { %>
+                            <tr>
+                                <td colspan="5" class="text-center text-muted">Belum ada riwayat absensi.</td>
+                            </tr>
+                        <% } %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function getLocation(event, form) {
+            event.preventDefault();
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    const latLong = `${position.coords.latitude}, ${position.coords.longitude}`;
+                    if(form.querySelector('#lokasiMasuk')) form.querySelector('#lokasiMasuk').value = latLong;
+                    if(form.querySelector('#lokasiPulang')) form.querySelector('#lokasiPulang').value = latLong;
+                    form.submit();
+                }, () => {
+                    alert("Gagal mendeteksi lokasi GPS. Pastikan GPS aktif!");
+                    form.submit();
+                });
+            } else {
+                alert("Geolocation tidak didukung browser ini.");
+                form.submit();
+            }
+        }
+    </script>
+</body>
+</html>
