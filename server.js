@@ -152,7 +152,66 @@ app.post('/admin/tambah-guru', isSuperAdmin, async (req, res) => {
         res.redirect('/dashboard/admin');
     }
 });
+// Route Form Edit Guru
+app.get('/admin/edit-guru/:id', isSuperAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { data: guru, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', id)
+            .single();
 
+        if (error) throw error;
+        res.render('edit_guru', { guru });
+    } catch (err) {
+        console.error("Gagal ambil data guru:", err.message);
+        res.redirect('/dashboard/admin');
+    }
+});
+
+// Route Proses Update Guru (Termasuk Reset Password jika diisi)
+app.post('/admin/edit-guru/:id', isSuperAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { nama, email, password } = req.body;
+
+        const updateData = { nama, email };
+
+        // Jika password diisi, hash password baru tersebut. Jika kosong, abaikan.
+        if (password && password.trim() !== "") {
+            updateData.password = bcrypt.hashSync(password, 10);
+        }
+
+        const { error } = await supabase
+            .from('users')
+            .update(updateData)
+            .eq('id', id);
+
+        if (error) throw error;
+        res.redirect('/dashboard/admin');
+    } catch (err) {
+        console.error("Gagal update guru:", err.message);
+        res.redirect('/dashboard/admin');
+    }
+});
+
+// Route Hapus Guru
+app.get('/admin/hapus-guru/:id', isSuperAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { error } = await supabase
+            .from('users')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+        res.redirect('/dashboard/admin');
+    } catch (err) {
+        console.error("Gagal hapus guru:", err.message);
+        res.redirect('/dashboard/admin');
+    }
+});
 // Register Page (Untuk Siswa)
 app.get('/register', async (req, res) => {
     const { data: allUsers } = await supabase
