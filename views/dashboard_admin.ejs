@@ -24,15 +24,20 @@
                             <th>No</th>
                             <th>Nama Guru</th>
                             <th>Email</th>
+                            <th class="text-center">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <% if (daftarGuru.length > 0) { %>
+                        <% if (daftarGuru && daftarGuru.length > 0) { %>
                             <% daftarGuru.forEach((guru, index) => { %>
                                 <tr>
                                     <td><%= index + 1 %></td>
                                     <td><%= guru.nama %></td>
                                     <td><%= guru.email %></td>
+                                    <td class="text-center">
+                                    <a href="/admin/edit-guru/<%= guru.id %>" class="btn btn-warning btn-sm">Edit / Reset Password</a>
+                                    <a href="/admin/hapus-guru/<%= guru.id %>" class="btn btn-danger btn-sm" onclick="return confirm('Yakin ingin menghapus guru ini?')">Hapus</a>
+                                </td>
                                 </tr>
                             <% }) %>
                         <% } else { %>
