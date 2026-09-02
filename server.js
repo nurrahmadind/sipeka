@@ -10,6 +10,31 @@ const app = express();
 // Inisialisasi Supabase
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
+// ==========================================
+// TARUH FUNGSI HELPER WIB DI SINI:
+// ==========================================
+const getWIBDate = () => {
+    const now = new Date();
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Jakarta',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).format(now);
+};
+
+const getWIBTime = () => {
+    const now = new Date();
+    return new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Jakarta',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    }).format(now);
+};
+// ==========================================
+
 // Gunakan memoryStorage agar file disimpan sementara di RAM (aman untuk Vercel)
 const storage = multer.memoryStorage();
 const upload = multer({ 
@@ -183,9 +208,9 @@ app.get('/dashboard/siswa', isSiswa, async (req, res) => {
 // Aksi Absen Masuk (Dengan Supabase Storage Bucket)
 app.post('/absen/masuk', isSiswa, upload.single('foto'), async (req, res) => {
     try {
-        const today = new Date().toISOString().split('T')[0];
+        const today = getWIBDate();
         const { lokasi } = req.body;
-        const jam = new Date().toLocaleTimeString();
+        const jam = getWIBTime();
         const file = req.file;
 
         let fotoUrl = null;
@@ -229,9 +254,9 @@ app.post('/absen/masuk', isSiswa, upload.single('foto'), async (req, res) => {
 // Aksi Absen Pulang & Jurnal (Dengan Supabase Storage Bucket)
 app.post('/absen/pulang', isSiswa, upload.single('foto'), async (req, res) => {
     try {
-        const today = new Date().toISOString().split('T')[0];
+        const today = getWIBDate();
         const { lokasi, jurnalHarian } = req.body;
-        const jam = new Date().toLocaleTimeString();
+        const jam = getWIBTime();
         const file = req.file;
 
         let fotoUrl = null;
