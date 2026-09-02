@@ -106,7 +106,7 @@
                                     <td><%= item.jam_pulang || '-' %></td>
                                     <td class="no-print">
                                         <% if (item.foto_pulang) { %>
-                                            <a href="/uploads/<%= item.foto_pulang %>" target="_blank" class="btn btn-sm btn-info text-white">Lihat Foto</a>
+                                            <a href="<%= item.foto_pulang %>" target="_blank" class="btn btn-sm btn-info text-white">Lihat Foto</a>
                                         <% } else { %> - <% } %>
                                     </td>
                                     <td><%= item.jurnal_harian || '-' %></td>
