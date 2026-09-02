@@ -100,7 +100,7 @@
                                     <td><%= item.jam_masuk || '-' %></td>
                                     <td class="no-print">
                                         <% if (item.foto_masuk) { %>
-                                            <a href="/uploads/<%= item.foto_masuk %>" target="_blank" class="btn btn-sm btn-info text-white">Lihat Foto</a>
+                                            <a href="<%= item.foto_masuk %>" target="_blank">Lihat Foto</a>
                                         <% } else { %> - <% } %>
                                     </td>
                                     <td><%= item.jam_pulang || '-' %></td>
