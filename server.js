@@ -10,10 +10,11 @@ const app = express();
 // Inisialisasi Supabase
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
-// Konfigurasi Upload Foto (Disimpan sementara di folder public/uploads)
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, 'public/uploads/'),
-    filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
+// Gunakan memoryStorage agar file disimpan sementara di RAM (aman untuk Vercel)
+const storage = multer.memoryStorage();
+const upload = multer({ 
+    storage: storage,
+    limits: { fileSize: 1 * 1024 * 1024 } // Batasi ukuran file max 5MB (opsional)
 });
 const upload = multer({ storage: storage });
 
