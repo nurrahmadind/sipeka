@@ -14,9 +14,8 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY
 const storage = multer.memoryStorage();
 const upload = multer({ 
     storage: storage,
-    limits: { fileSize: 1 * 1024 * 1024 } // Batasi ukuran file max 5MB (opsional)
+    limits: { fileSize: 1 * 1024 * 1024 } // Batasi ukuran file max 1MB agar ringan
 });
-const upload = multer({ storage: storage });
 
 // Middleware
 app.set('view engine', 'ejs');
@@ -42,13 +41,17 @@ const isSuperAdmin = (req, res, next) => {
 
 // --- ROUTES ---
 
+// Root route redirect ke login
+app.get('/', (req, res) => {
+    res.redirect('/login');
+});
+
 // Login Page
 app.get('/login', (req, res) => res.render('login', { error: null }));
 app.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
         
-        // Ambil data user berdasarkan email
         const { data: users, error } = await supabase.from('users').select('*').eq('email', email);
         
         if (error) {
@@ -58,25 +61,18 @@ app.post('/login', async (req, res) => {
 
         if (users && users.length > 0) {
             const user = users[0];
-            
-            // Periksa password menggunakan bcrypt
             const match = bcrypt.compareSync(password, user.password);
             
             if (match) {
                 req.session.user = user;
                 if (user.role === 'superadmin') {
                     return res.redirect('/dashboard/admin');
-                }
-                else if (user.role === 'guru') {
+                } else if (user.role === 'guru') {
                     return res.redirect('/dashboard/guru');
                 } else {
                     return res.redirect('/dashboard/siswa');
                 }
-            } else {
-                console.log("Password tidak cocok untuk email:", email);
             }
-        } else {
-            console.log("Email tidak ditemukan di database:", email);
         }
 
         res.render('login', { error: 'Email atau password salah!' });
@@ -87,8 +83,6 @@ app.post('/login', async (req, res) => {
 });
 
 // --- ROUTE KHUSUS SUPER ADMIN ---
-
-// 1. Dashboard Super Admin (Melihat daftar guru yang sudah terdaftar)
 app.get('/dashboard/admin', isSuperAdmin, async (req, res) => {
     try {
         const { data: daftarGuru, error } = await supabase
@@ -108,12 +102,10 @@ app.get('/dashboard/admin', isSuperAdmin, async (req, res) => {
     }
 });
 
-// 2. Halaman Form Tambah Guru (Hanya bisa diakses Super Admin)
 app.get('/admin/tambah-guru', isSuperAdmin, (req, res) => {
     res.render('tambah_guru');
 });
 
-// 3. Proses Simpan Guru Baru oleh Super Admin
 app.post('/admin/tambah-guru', isSuperAdmin, async (req, res) => {
     try {
         const { nama, email, password } = req.body;
@@ -138,7 +130,7 @@ app.post('/admin/tambah-guru', isSuperAdmin, async (req, res) => {
 
 // Register Page (Untuk Siswa)
 app.get('/register', async (req, res) => {
-    const { data: allUsers, error } = await supabase
+    const { data: allUsers } = await supabase
         .from('users')
         .select('*');
 
@@ -188,43 +180,102 @@ app.get('/dashboard/siswa', isSiswa, async (req, res) => {
     });
 });
 
-// Aksi Absen Masuk
+// Aksi Absen Masuk (Dengan Supabase Storage Bucket)
 app.post('/absen/masuk', isSiswa, upload.single('foto'), async (req, res) => {
-    const today = new Date().toISOString().split('T')[0];
-    const { lokasi } = req.body;
-    const foto = req.file ? req.file.filename : null;
-    const jam = new Date().toLocaleTimeString();
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        const { lokasi } = req.body;
+        const jam = new Date().toLocaleTimeString();
+        const file = req.file;
 
-    await supabase.from('attendances').insert([{
-        siswa_id: req.session.user.id,
-        tanggal: today,
-        jam_masuk: jam,
-        foto_masuk: foto,
-        lokasi_masuk: lokasi
-    }]);
+        let fotoUrl = null;
 
-    res.redirect('/dashboard/siswa');
+        if (file) {
+            const fileName = `masuk_${req.session.user.id}_${Date.now()}.jpg`;
+            
+            // Upload ke Supabase Storage (Pastikan Anda sudah membuat bucket bernama 'absensi-foto')
+            const { error: uploadError } = await supabase.storage
+                .from('absensi-foto')
+                .upload(fileName, file.buffer, {
+                    contentType: file.mimetype,
+                    upsert: false
+                });
+
+            if (uploadError) throw uploadError;
+
+            // Ambil Public URL
+            const { data: publicURLData } = supabase.storage
+                .from('absensi-foto')
+                .getPublicUrl(fileName);
+
+            fotoUrl = publicURLData.publicUrl;
+        }
+
+        await supabase.from('attendances').insert([{
+            siswa_id: req.session.user.id,
+            tanggal: today,
+            jam_masuk: jam,
+            foto_masuk: fotoUrl,
+            lokasi_masuk: lokasi
+        }]);
+
+        res.redirect('/dashboard/siswa');
+    } catch (err) {
+        console.error("Error Absen Masuk:", err.message);
+        res.status(500).send("Gagal melakukan absen masuk: " + err.message);
+    }
 });
 
-// Aksi Absen Pulang & Jurnal
+// Aksi Absen Pulang & Jurnal (Dengan Supabase Storage Bucket)
 app.post('/absen/pulang', isSiswa, upload.single('foto'), async (req, res) => {
-    const today = new Date().toISOString().split('T')[0];
-    const { lokasi, jurnalHarian } = req.body;
-    const foto = req.file ? req.file.filename : null;
-    const jam = new Date().toLocaleTimeString();
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        const { lokasi, jurnalHarian } = req.body;
+        const jam = new Date().toLocaleTimeString();
+        const file = req.file;
 
-    await supabase
-        .from('attendances')
-        .update({
+        let fotoUrl = null;
+
+        if (file) {
+            const fileName = `pulang_${req.session.user.id}_${Date.now()}.jpg`;
+            
+            const { error: uploadError } = await supabase.storage
+                .from('absensi-foto')
+                .upload(fileName, file.buffer, {
+                    contentType: file.mimetype,
+                    upsert: false
+                });
+
+            if (uploadError) throw uploadError;
+
+            const { data: publicURLData } = supabase.storage
+                .from('absensi-foto')
+                .getPublicUrl(fileName);
+
+            fotoUrl = publicURLData.publicUrl;
+        }
+
+        const updateData = {
             jam_pulang: jam,
-            foto_pulang: foto,
             lokasi_pulang: lokasi,
             jurnal_harian: jurnalHarian
-        })
-        .eq('siswa_id', req.session.user.id)
-        .eq('tanggal', today);
+        };
 
-    res.redirect('/dashboard/siswa');
+        if (fotoUrl) {
+            updateData.foto_pulang = fotoUrl;
+        }
+
+        await supabase
+            .from('attendances')
+            .update(updateData)
+            .eq('siswa_id', req.session.user.id)
+            .eq('tanggal', today);
+
+        res.redirect('/dashboard/siswa');
+    } catch (err) {
+        console.error("Error Absen Pulang:", err.message);
+        res.status(500).send("Gagal melakukan absen pulang: " + err.message);
+    }
 });
 
 // Dashboard Guru dengan Filter
@@ -313,7 +364,6 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Sipeka Server running on port ${PORT}`));
 
 // --- SCRIPT SEED OTOMATIS ---
-
 async function seedAdminGuru() {
     const emailGuru = 'dinda@gmail.com';
     const passwordPlain = 'guru123';
@@ -328,10 +378,8 @@ async function seedAdminGuru() {
             password: hashedPassword,
             role: 'guru'
         }]);
-        console.log("Akun guru berhasil dibuat otomatis dengan bcrypt!");
     } else {
         await supabase.from('users').update({ password: hashedPassword }).eq('email', emailGuru);
-        console.log("Password akun guru berhasil di-refresh dengan hash bcrypt yang valid!");
     }
 }
 seedAdminGuru();
@@ -352,22 +400,6 @@ async function seedSuperAdmin() {
             kelas: '-',
             tempat_pkl: '-'
         }]);
-        console.log("Akun Super Admin berhasil dibuat!");
     }
 }
 seedSuperAdmin();
-
-async function resetAdminPassword() {
-    const hashedPassword = bcrypt.hashSync('admin123', 10);
-    const { error } = await supabase
-        .from('users')
-        .update({ password: hashedPassword })
-        .eq('email', 'admin@gmail.com');
-
-    if (!error) {
-        console.log("Password Super Admin berhasil diperbarui!");
-    } else {
-        console.error("Gagal reset password:", error.message);
-    }
-}
-resetAdminPassword();
