@@ -438,6 +438,41 @@ app.post('/guru/tambah-siswa', isGuru, async (req, res) => {
     }
 });
 
+// ==========================================
+// KEEP-ALIVE ENDPOINT (Anti-Pause Supabase)
+// Endpoint ini akan dipanggil otomatis oleh
+// cron-job.org setiap beberapa menit, sehingga
+// Supabase mendeteksi adanya aktivitas database
+// dan project tidak di-pause.
+// ==========================================
+app.get('/api/keep-alive', async (req, res) => {
+    try {
+        // Proteksi opsional: jika env KEEPALIVE_SECRET diisi (di Vercel / .env),
+        // maka request harus membawa query ?key=<secret>
+        const secret = process.env.KEEPALIVE_SECRET;
+        if (secret && req.query.key !== secret) {
+            return res.status(401).json({ ok: false, message: 'Unauthorized' });
+        }
+
+        // Query ringan ke Supabase (hanya COUNT, tidak mengambil data)
+        // Inilah yang membuat project Supabase dianggap "aktif"
+        const { error } = await supabase
+            .from('users')
+            .select('id', { count: 'exact', head: true });
+
+        if (error) throw error;
+
+        return res.status(200).json({
+            ok: true,
+            message: 'Keep-alive sukses, database aktif',
+            time_wib: `${getWIBDate()} ${getWIBTime()} WIB`
+        });
+    } catch (err) {
+        console.error('Keep-alive Error:', err.message);
+        return res.status(500).json({ ok: false, message: err.message });
+    }
+});
+
 // Logout
 app.get('/logout', (req, res) => {
     req.session.destroy(() => res.redirect('/login'));
